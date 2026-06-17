@@ -10,12 +10,14 @@ import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+import software.amazon.awssdk.services.s3.model.S3Exception;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
 import software.amazon.awssdk.services.s3.presigner.model.PresignedGetObjectRequest;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.util.Set;
 import java.util.UUID;
 
 @Slf4j
@@ -27,59 +29,157 @@ public class S3StorageService {
     private final S3Presigner s3Presigner;
     private final AwsProperties awsProperties;
 
-    // Upload raw video file to S3
-    public String uploadRawVideo(MultipartFile file, UUID videoId) throws IOException {
-        String key = buildRawVideoKey(videoId, file.getOriginalFilename());
-        log.info("Uploading raw video to S3: {}", key);
+    private static final Set<String> ALLOWED_EXTENSIONS = Set.of(
+            "mp4",
+            "mkv",
+            "avi",
+            "mov"
+    );
 
-        PutObjectRequest request = PutObjectRequest.builder()
-                .bucket(awsProperties.getS3().getBucketName())
-                .key(key)
-                .contentType(file.getContentType())
-                .contentLength(file.getSize())
-                .build();
+    /**
+     * Upload raw video to S3.
+     */
+    public String uploadRawVideo(
+            MultipartFile file,
+            UUID videoId
+    ) throws IOException {
 
-        s3Client.putObject(request,
-                RequestBody.fromInputStream(file.getInputStream(), file.getSize()));
+        String key = buildRawVideoKey(
+                videoId,
+                file.getOriginalFilename()
+        );
 
-        log.info("Successfully uploaded raw video to S3: {}", key);
-        return key;
-    }
+        log.info(
+                "Uploading video to S3 key={} size={} bytes",
+                key,
+                file.getSize()
+        );
 
-    // Generate presigned URL for secure access
-    public String generatePresignedUrl(String s3Key) {
-        GetObjectRequest getObjectRequest = GetObjectRequest.builder()
-                .bucket(awsProperties.getS3().getBucketName())
-                .key(s3Key)
-                .build();
+        PutObjectRequest request =
+                PutObjectRequest.builder()
+                        .bucket(awsProperties.getS3().getBucketName())
+                        .key(key)
+                        .contentType(file.getContentType())
+                        .contentLength(file.getSize())
+                        .metadata(
+                                java.util.Map.of(
+                                        "video-id", videoId.toString()
+                                )
+                        )
+                        .build();
 
-        GetObjectPresignRequest presignRequest = GetObjectPresignRequest.builder()
-                .signatureDuration(Duration.ofMinutes(
-                        awsProperties.getS3().getPresignedUrlExpiry()))
-                .getObjectRequest(getObjectRequest)
-                .build();
+        try {
 
-        PresignedGetObjectRequest presignedRequest =
-                s3Presigner.presignGetObject(presignRequest);
+            s3Client.putObject(
+                    request,
+                    RequestBody.fromInputStream(
+                            file.getInputStream(),
+                            file.getSize()
+                    )
+            );
 
-        return presignedRequest.url().toString();
-    }
+            log.info(
+                    "S3 upload completed successfully key={}",
+                    key
+            );
 
-    // Delete object from S3
-    public void deleteObject(String s3Key) {
-        log.info("Deleting S3 object: {}", s3Key);
-        s3Client.deleteObject(DeleteObjectRequest.builder()
-                .bucket(awsProperties.getS3().getBucketName())
-                .key(s3Key)
-                .build());
-    }
+            return key;
 
-    // S3 key structure: raw/{videoId}/{filename}
-    private String buildRawVideoKey(UUID videoId, String originalFilename) {
-        String extension = "";
-        if (originalFilename != null && originalFilename.contains(".")) {
-            extension = originalFilename.substring(originalFilename.lastIndexOf("."));
+        } catch (S3Exception ex) {
+
+            log.error(
+                    "S3 upload failed for key={}",
+                    key,
+                    ex
+            );
+
+            throw ex;
         }
-        return String.format("raw/%s/original%s", videoId, extension);
     }
+
+    /**
+     * Generate temporary download URL.
+     */
+    public String generatePresignedUrl(String s3Key) {
+
+        GetObjectRequest getObjectRequest =
+                GetObjectRequest.builder()
+                        .bucket(awsProperties.getS3().getBucketName())
+                        .key(s3Key)
+                        .build();
+
+        GetObjectPresignRequest presignRequest =
+                GetObjectPresignRequest.builder()
+                        .signatureDuration(
+                                Duration.ofMinutes(
+                                        awsProperties
+                                                .getS3()
+                                                .getPresignedUrlExpiry()
+                                )
+                        )
+                        .getObjectRequest(getObjectRequest)
+                        .build();
+
+        PresignedGetObjectRequest request =
+                s3Presigner.presignGetObject(
+                        presignRequest
+                );
+
+        return request.url().toString();
+    }
+
+    /**
+     * Delete S3 object.
+     */
+    public void deleteObject(String s3Key) {
+
+        log.info(
+                "Deleting S3 object {}",
+                s3Key
+        );
+
+        s3Client.deleteObject(
+                DeleteObjectRequest.builder()
+                        .bucket(
+                                awsProperties
+                                        .getS3()
+                                        .getBucketName()
+                        )
+                        .key(s3Key)
+                        .build()
+        );
+    }
+
+    /**
+     * Build secure storage key.
+     *
+     * raw/{videoId}/original.mp4
+     */
+    private String buildRawVideoKey(
+            UUID videoId,
+            String originalFilename
+    ) {
+
+        String extension = "mp4";
+
+        if (originalFilename != null &&
+                originalFilename.contains(".")) {
+
+            String extracted =
+                    originalFilename.substring(
+                            originalFilename.lastIndexOf('.') + 1
+                    ).toLowerCase();
+
+            if (ALLOWED_EXTENSIONS.contains(extracted)) {
+                extension = extracted;
+            }
+        }
+
+        return String.format(
+                "raw/%s/original.%s",
+                videoId,
+                extension
+        );
+    }
+
 }

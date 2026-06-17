@@ -59,12 +59,20 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
+                                // Auth endpoints
                                 "/api/v1/auth/**",
+                                // Swagger UI
                                 "/swagger-ui.html",
                                 "/swagger-ui/**",
+                                "/swagger-ui/index.html",
                                 "/webjars/**",
+                                // SpringDoc API docs
                                 "/v3/api-docs",
-                                "/v3/api-docs/**"
+                                "/v3/api-docs/**",
+                                "/api-docs",
+                                "/api-docs/**",
+                                // Actuator health check
+                                "/actuator/health"
                         ).permitAll()
                         .anyRequest().authenticated()
                 )

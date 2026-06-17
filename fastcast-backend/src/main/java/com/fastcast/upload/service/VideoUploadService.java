@@ -14,7 +14,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 
@@ -28,10 +27,13 @@ public class VideoUploadService {
     private final VideoProcessingProducer kafkaProducer;
     private final LatencyMetricsService latencyMetrics;
 
-    private static final List<String> ALLOWED_TYPES = Arrays.asList(
-            "video/mp4", "video/x-matroska", "video/avi",
-            "video/quicktime", "video/x-msvideo"
-    );
+    private static final List<String> ALLOWED_TYPES = List.of(
+            "video/mp4",
+            "video/x-matroska",
+            "video/avi",
+            "video/quicktime",
+            "video/x-msvideo");
+
     private static final long MAX_FILE_SIZE = 2L * 1024 * 1024 * 1024;
 
     @Transactional
@@ -50,35 +52,107 @@ public class VideoUploadService {
                 .build();
 
         video = videoRepository.save(video);
+
         UUID videoId = video.getId();
-        log.info("Created video record: {}", videoId);
 
-        // Measure S3 upload latency
-        long uploadStart = System.nanoTime();
-        String s3Key = s3StorageService.uploadRawVideo(file, videoId);
-        latencyMetrics.recordUploadLatency(System.nanoTime() - uploadStart);
+        log.info(
+                "Video upload initiated videoId={}",
+                videoId);
 
-        video.setS3RawKey(s3Key);
-        video.setStatus(VideoStatus.PROCESSING);
-        videoRepository.save(video);
+        String s3Key = null;
 
-        kafkaProducer.sendVideoProcessingJob(videoId, s3Key, video.getTitle());
-        log.info("Kafka processing job dispatched for videoId: {}", videoId);
+        try {
 
-        return VideoUploadResponse.builder()
-                .videoId(videoId)
-                .title(video.getTitle())
-                .status(video.getStatus())
-                .message("Video uploaded successfully. Processing will begin shortly.")
-                .build();
+            long start = System.nanoTime();
+
+            s3Key = s3StorageService.uploadRawVideo(
+                    file,
+                    videoId);
+
+            latencyMetrics.recordUploadLatency(
+                    System.nanoTime() - start);
+
+            video.setS3RawKey(s3Key);
+            video.setStatus(VideoStatus.PROCESSING);
+
+            videoRepository.save(video);
+
+            kafkaProducer.sendVideoProcessingJob(
+                    videoId,
+                    s3Key,
+                    video.getTitle());
+
+            log.info(
+                    "Kafka processing event published videoId={}",
+                    videoId);
+
+            return VideoUploadResponse.builder()
+                    .videoId(videoId)
+                    .title(video.getTitle())
+                    .status(video.getStatus())
+                    .message(
+                            "Upload successful. Video processing started.")
+                    .build();
+
+        } catch (Exception ex) {
+
+            log.error(
+                    "Upload failed videoId={}",
+                    videoId,
+                    ex);
+
+            if (s3Key != null) {
+
+                try {
+
+                    s3StorageService.deleteObject(
+                            s3Key);
+
+                    log.info(
+                            "Rolled back S3 object {}",
+                            s3Key);
+
+                } catch (Exception cleanupEx) {
+
+                    log.error(
+                            "S3 cleanup failed {}",
+                            s3Key,
+                            cleanupEx);
+
+                }
+
+            }
+
+            throw ex;
+        }
+
     }
 
-    private void validateFile(MultipartFile file) {
-        if (file == null || file.isEmpty())
-            throw new IllegalArgumentException("File cannot be empty");
-        if (!ALLOWED_TYPES.contains(file.getContentType()))
-            throw new IllegalArgumentException("Invalid file type. Allowed: mp4, mkv, avi, mov");
-        if (file.getSize() > MAX_FILE_SIZE)
-            throw new IllegalArgumentException("File size exceeds 2GB limit");
+    private void validateFile(
+            MultipartFile file) {
+
+        if (file == null || file.isEmpty()) {
+
+            throw new IllegalArgumentException(
+                    "File cannot be empty");
+
+        }
+
+        if (!ALLOWED_TYPES.contains(
+                file.getContentType())) {
+
+            throw new IllegalArgumentException(
+                    "Unsupported video format");
+
+        }
+
+        if (file.getSize() > MAX_FILE_SIZE) {
+
+            throw new IllegalArgumentException(
+                    "Maximum upload size is 2GB");
+
+        }
+
     }
+
 }

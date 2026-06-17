@@ -11,6 +11,8 @@ import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Comparator;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Stream;
 
@@ -22,48 +24,121 @@ public class HlsUploadService {
     private final S3Client s3Client;
     private final AwsProperties awsProperties;
 
-    // Upload entire HLS output directory to S3
-    public String uploadHlsToS3(Path hlsOutputDir, UUID videoId) throws IOException {
+    public String uploadHlsToS3(Path hlsOutputDir, UUID videoId)
+            throws IOException {
+
         String s3BasePath = "hls/" + videoId;
-        log.info("Uploading HLS chunks to S3 at: {}", s3BasePath);
+
+        log.info(
+                "Starting HLS upload for videoId={}",
+                videoId
+        );
 
         try (Stream<Path> paths = Files.walk(hlsOutputDir)) {
+
             paths.filter(Files::isRegularFile)
-                    .forEach(file -> uploadFile(file, hlsOutputDir, s3BasePath));
+                    .sorted(Comparator.naturalOrder())
+                    .forEach(path ->
+                            uploadFile(
+                                    path,
+                                    hlsOutputDir,
+                                    s3BasePath,
+                                    videoId
+                            ));
+
         }
 
-        log.info("HLS upload complete for videoId: {}", videoId);
+        log.info(
+                "Completed HLS upload for videoId={}",
+                videoId
+        );
+
         return s3BasePath;
     }
 
-    private void uploadFile(Path file, Path baseDir, String s3BasePath) {
+    private void uploadFile(
+            Path file,
+            Path baseDir,
+            String s3BasePath,
+            UUID videoId
+    ) {
+
+        String relativePath =
+                baseDir.relativize(file)
+                        .toString()
+                        .replace("\\", "/");
+
+        String s3Key =
+                s3BasePath + "/" + relativePath;
+
         try {
-            // relativize to get path like: stream_720p/segment001.ts
-            String relativePath = baseDir.relativize(file)
-                    .toString()
-                    .replace("\\", "/");
 
-            String s3Key = s3BasePath + "/" + relativePath;
-            String contentType = getContentType(file.toString());
+            PutObjectRequest request =
+                    PutObjectRequest.builder()
+                            .bucket(
+                                    awsProperties
+                                            .getS3()
+                                            .getBucketName()
+                            )
+                            .key(s3Key)
+                            .contentType(
+                                    getContentType(file)
+                            )
+                            .cacheControl(
+                                    "public,max-age=31536000"
+                            )
+                            .metadata(
+                                    Map.of(
+                                            "video-id",
+                                            videoId.toString()
+                                    )
+                            )
+                            .build();
 
-            PutObjectRequest request = PutObjectRequest.builder()
-                    .bucket(awsProperties.getS3().getBucketName())
-                    .key(s3Key)
-                    .contentType(contentType)
-                    .build();
+            s3Client.putObject(
+                    request,
+                    RequestBody.fromFile(file)
+            );
 
-            s3Client.putObject(request, RequestBody.fromFile(file));
-            log.debug("Uploaded: {}", s3Key);
+            log.debug(
+                    "Uploaded {}",
+                    s3Key
+            );
 
-        } catch (Exception e) {
-            log.error("Failed to upload file: {}", file, e);
-            throw new RuntimeException("HLS upload failed for file: " + file, e);
+        } catch (Exception ex) {
+
+            log.error(
+                    "Failed uploading {}",
+                    s3Key,
+                    ex
+            );
+
+            throw new RuntimeException(
+                    "Failed to upload HLS file: " + s3Key,
+                    ex
+            );
+
         }
+
     }
 
-    private String getContentType(String filename) {
-        if (filename.endsWith(".m3u8")) return "application/vnd.apple.mpegurl";
-        if (filename.endsWith(".ts"))   return "video/mp2t";
+    private String getContentType(Path file) {
+
+        String name =
+                file.getFileName()
+                        .toString()
+                        .toLowerCase();
+
+        if (name.endsWith(".m3u8")) {
+            return "application/vnd.apple.mpegurl";
+        }
+
+        if (name.endsWith(".ts")) {
+            return "video/mp2t";
+        }
+
         return "application/octet-stream";
+
     }
+
 }

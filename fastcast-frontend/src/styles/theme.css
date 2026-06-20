@@ -1,0 +1,42 @@
+:root {
+
+  /* Background */
+
+  --bg-primary: #050816;
+  --bg-secondary: #0B1120;
+  --bg-card: rgba(255,255,255,0.06);
+
+  /* Brand */
+
+  --primary: #7C5CFF;
+  --primary-hover: #6847FF;
+
+  --accent: #00D4FF;
+
+  /* Text */
+
+  --text-primary: #FFFFFF;
+  --text-secondary: #A9B1D6;
+  --text-muted: #6B7280;
+
+  /* Border */
+
+  --border: rgba(255,255,255,0.08);
+
+  /* Radius */
+
+  --radius-sm:8px;
+  --radius-md:14px;
+  --radius-lg:20px;
+
+  /* Shadows */
+
+  --shadow:
+
+      0 12px 30px rgba(0,0,0,.35);
+
+  /* Blur */
+
+  --glass-blur:18px;
+
+}

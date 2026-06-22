@@ -23,6 +23,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.lenient;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("VideoService unit tests")
@@ -60,7 +61,7 @@ class VideoServiceTest {
                 .build();
 
         // Timer.Sample mock — returned by latencyMetrics.startSample()
-        when(latencyMetrics.startSample()).thenReturn(timerSample);
+        lenient().when(latencyMetrics.startSample()).thenReturn(timerSample);
     }
 
     // ── Cache HIT tests ───────────────────────────────────────────────────────

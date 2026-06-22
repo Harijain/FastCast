@@ -1,5 +1,6 @@
 package com.fastcast.upload.service;
 
+import com.fastcast.common.util.SanitizationUtil;
 import com.fastcast.metrics.service.LatencyMetricsService;
 import com.fastcast.processing.producer.VideoProcessingProducer;
 import com.fastcast.upload.dto.VideoUploadRequest;
@@ -22,6 +23,8 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.ArgumentMatchers.any;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("VideoUploadService unit tests")
@@ -31,6 +34,7 @@ class VideoUploadServiceTest {
     @Mock private S3StorageService s3StorageService;
     @Mock private VideoProcessingProducer kafkaProducer;
     @Mock private LatencyMetricsService latencyMetrics;
+    @Mock private SanitizationUtil sanitizationUtil;
 
     @InjectMocks
     private VideoUploadService videoUploadService;
@@ -50,6 +54,8 @@ class VideoUploadServiceTest {
         uploadRequest = new VideoUploadRequest();
         uploadRequest.setTitle("My Test Video");
         uploadRequest.setDescription("Test description");
+        lenient().when(sanitizationUtil.sanitizeTitle(any())).thenReturn("My Test Video");
+        lenient().when(sanitizationUtil.sanitizeDescription(any())).thenReturn("Test description");
     }
 
     @Test

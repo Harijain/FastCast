@@ -8,6 +8,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -34,16 +35,11 @@ public class AuthController {
         return ResponseEntity.ok(ApiResponse.success(authService.login(request)));
     }
 
-    /**
-     * Client-side logout — the client simply discards the JWT token.
-     * This endpoint exists so the frontend has a clean logout flow ,and
-     * we can later upgrade to server-side blacklisting without changing
-     * the API contract.
-     */
     @PostMapping("/logout")
     @Operation(summary = "Logout (client-side — discard your JWT token)")
     public ResponseEntity<ApiResponse<Void>> logout() {
-        return ResponseEntity.ok(ApiResponse.success("Logged out successfully. Please discard your token.", null));
+        return ResponseEntity.ok(ApiResponse.success(
+                "Logged out successfully. Please discard your token.", null));
     }
 
     @PostMapping("/refresh")
@@ -53,20 +49,23 @@ public class AuthController {
         return ResponseEntity.ok(ApiResponse.success(authService.refresh(refreshToken)));
     }
 
-    /**
-     * Returns the currently authenticated user's profile.
-     * Spring Security injects the User from the JWT via @AuthenticationPrincipal.
-     */
     @GetMapping("/me")
     @Operation(summary = "Get current user profile")
     public ResponseEntity<ApiResponse<UserProfileResponse>> me(
             @AuthenticationPrincipal User user) {
+
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(ApiResponse.error("Not authenticated"));
+        }
+
         UserProfileResponse profile = UserProfileResponse.builder()
                 .id(user.getId())
                 .name(user.getName())
                 .email(user.getEmail())
                 .role(user.getRole())
                 .build();
+
         return ResponseEntity.ok(ApiResponse.success(profile));
     }
 }

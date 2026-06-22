@@ -46,6 +46,13 @@ public class AuthController {
         return ResponseEntity.ok(ApiResponse.success("Logged out successfully. Please discard your token.", null));
     }
 
+    @PostMapping("/refresh")
+    @Operation(summary = "Refresh access token using refresh token")
+    public ResponseEntity<ApiResponse<AuthResponse>> refresh(
+            @RequestHeader("X-Refresh-Token") String refreshToken) {
+        return ResponseEntity.ok(ApiResponse.success(authService.refresh(refreshToken)));
+    }
+
     /**
      * Returns the currently authenticated user's profile.
      * Spring Security injects the User from the JWT via @AuthenticationPrincipal.

@@ -1,10 +1,29 @@
-import { NavLink, Link } from "react-router-dom";
-import { FiSearch } from "react-icons/fi";
+import { useState } from "react";
+import { NavLink, Link, useNavigate } from "react-router-dom";
+import { FiSearch, FiChevronDown } from "react-icons/fi";
 
 import Logo from "../common/Logo";
 import Button from "../common/Button";
 
+import useAuthStore from "../../store/authStore";
+
 const Navbar = () => {
+
+    const navigate = useNavigate();
+
+    const [menuOpen, setMenuOpen] = useState(false);
+
+    const authenticated = useAuthStore(
+        (state) => state.authenticated
+    );
+
+    const user = useAuthStore(
+        (state) => state.user
+    );
+
+    const logout = useAuthStore(
+        (state) => state.logout
+    );
 
     const navLink = ({ isActive }) =>
 
@@ -13,6 +32,14 @@ const Navbar = () => {
             ? "text-slate-900 font-semibold"
 
             : "text-slate-500 hover:text-slate-900 transition";
+
+    const handleLogout = async () => {
+
+        await logout();
+
+        navigate("/login");
+
+    };
 
     return (
 
@@ -32,13 +59,21 @@ const Navbar = () => {
                         Explore
                     </NavLink>
 
-                    <NavLink to="/upload" className={navLink}>
-                        Upload
-                    </NavLink>
+                    {
 
-                    <NavLink to="/history" className={navLink}>
-                        History
-                    </NavLink>
+                        authenticated &&
+
+                        <>
+                            <NavLink to="/upload" className={navLink}>
+                                Upload
+                            </NavLink>
+
+                            <NavLink to="/history" className={navLink}>
+                                History
+                            </NavLink>
+                        </>
+
+                    }
 
                 </nav>
 
@@ -50,15 +85,79 @@ const Navbar = () => {
                         <FiSearch size={18} />
                     </button>
 
-                    <Link to="/login">
+                    {
 
-                        <Button>
+                        !authenticated ? (
 
-                            Login
+                            <Link to="/login">
 
-                        </Button>
+                                <Button>
 
-                    </Link>
+                                    Login
+
+                                </Button>
+
+                            </Link>
+
+                        ) : (
+
+                            <div className="relative">
+
+                                <button
+                                    onClick={() =>
+                                        setMenuOpen(!menuOpen)
+                                    }
+                                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 transition"
+                                >
+
+                                    <span className="font-medium">
+
+                                        {user?.name || "User"}
+
+                                    </span>
+
+                                    <FiChevronDown />
+
+                                </button>
+
+                                {
+
+                                    menuOpen && (
+
+                                        <div className="absolute right-0 mt-2 w-56 rounded-2xl bg-white shadow-xl border border-slate-200 overflow-hidden">
+
+                                            <Link
+                                                to="/profile"
+                                                className="block px-4 py-3 hover:bg-slate-50"
+                                            >
+                                                Profile
+                                            </Link>
+
+                                            <Link
+                                                to="/history"
+                                                className="block px-4 py-3 hover:bg-slate-50"
+                                            >
+                                                Watch History
+                                            </Link>
+
+                                            <button
+                                                onClick={handleLogout}
+                                                className="w-full text-left px-4 py-3 text-red-600 hover:bg-red-50"
+                                            >
+                                                Logout
+                                            </button>
+
+                                        </div>
+
+                                    )
+
+                                }
+
+                            </div>
+
+                        )
+
+                    }
 
                 </div>
 

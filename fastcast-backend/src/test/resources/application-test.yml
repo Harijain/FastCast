@@ -1,0 +1,43 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/fastcast
+    username: fastcast
+    password: fastcast123
+
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    validate-on-migrate: false
+
+  kafka:
+    bootstrap-servers: localhost:9092
+    listener:
+      missing-topics-fatal: false
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+aws:
+  region: ap-south-1
+  access-key: dummy-test-key
+  secret-key: dummy-test-secret
+  s3:
+    bucket-name: test-bucket
+    presigned-url-expiry: 60
+
+ffmpeg:
+  path: ffmpeg
+  ffprobe-path: ffprobe
+  output-dir: ${java.io.tmpdir}/fastcast-test
+
+app:
+  jwt:
+    secret: 404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970
+    expiration: 86400000
+
+logging:
+  level:
+    com.fastcast: WARN
+    org.springframework: WARN

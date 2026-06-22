@@ -1,5 +1,6 @@
 package com.fastcast.upload.service;
 
+import com.fastcast.common.util.SanitizationUtil;
 import com.fastcast.metrics.service.LatencyMetricsService;
 import com.fastcast.processing.producer.VideoProcessingProducer;
 import com.fastcast.upload.dto.VideoUploadRequest;
@@ -26,6 +27,7 @@ public class VideoUploadService {
     private final S3StorageService s3StorageService;
     private final VideoProcessingProducer kafkaProducer;
     private final LatencyMetricsService latencyMetrics;
+    private final SanitizationUtil sanitizationUtil;
 
     private static final List<String> ALLOWED_TYPES = List.of(
             "video/mp4",
@@ -42,10 +44,13 @@ public class VideoUploadService {
             VideoUploadRequest request) throws IOException {
 
         validateFile(file);
+        // Sanitize user input before persisting
+        String safeTitle = sanitizationUtil.sanitizeTitle(request.getTitle());
+        String safeDescription = sanitizationUtil.sanitizeDescription(request.getDescription());
 
         Video video = Video.builder()
-                .title(request.getTitle())
-                .description(request.getDescription())
+                .title(safeTitle)
+                .description(safeDescription)
                 .originalFilename(file.getOriginalFilename())
                 .fileSizeBytes(file.getSize())
                 .status(VideoStatus.UPLOADED)

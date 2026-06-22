@@ -2,6 +2,8 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import LoginPage from "../pages/Login/LoginPage";
 import MainLayout from "../layouts/MainLayout";
 import ProtectedRoute from "./ProtectedRoute";
+import RegisterPage from "../pages/Register/RegisterPage";
+import HomePage from "../pages/Home/HomePage";
 
 const Placeholder = ({ title }) => {
   return (
@@ -28,14 +30,17 @@ const AppRoutes = () => {
           path="/"
           element={
             <MainLayout>
-              <Placeholder title="FastCast Home" />
+              <HomePage />
             </MainLayout>
           }
         />
 
         <Route path="/login" element={<LoginPage />} />
 
-        <Route path="/register" element={<Placeholder title="Register" />} />
+       <Route
+    path="/register"
+    element={<RegisterPage />}
+/>
 
         <Route
           path="/search"

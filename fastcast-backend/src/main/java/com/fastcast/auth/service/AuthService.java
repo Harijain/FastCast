@@ -35,12 +35,7 @@ public class AuthService {
         userRepository.save(user);
         log.info("New user registered: {}", user.getEmail());
 
-        String token = jwtService.generateToken(user);
-        return AuthResponse.builder()
-                .token(token)
-                .email(user.getEmail())
-                .name(user.getName())
-                .build();
+        return buildResponse(user);
     }
 
     public AuthResponse login(LoginRequest request) {
@@ -54,11 +49,27 @@ public class AuthService {
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
-        String token = jwtService.generateToken(user);
         log.info("User logged in: {}", user.getEmail());
+        return buildResponse(user);
+    }
 
+    public AuthResponse refresh(String refreshToken) {
+        String email = jwtService.extractUsername(refreshToken);
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        if (!jwtService.isTokenValid(refreshToken, user)) {
+            throw new IllegalArgumentException("Invalid or expired refresh token");
+        }
+
+        log.info("Token refreshed for: {}", email);
+        return buildResponse(user);
+    }
+
+    private AuthResponse buildResponse(User user) {
         return AuthResponse.builder()
-                .token(token)
+                .token(jwtService.generateToken(user))
+                .refreshToken(jwtService.generateRefreshToken(user))
                 .email(user.getEmail())
                 .name(user.getName())
                 .build();

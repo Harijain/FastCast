@@ -34,4 +34,11 @@ public class MetricsSummary {
     private double jvmHeapUsedMb;
     private double jvmHeapMaxMb;
     private double cpuUsagePercent;
+
+    // Frontend-friendly aliases / derived fields
+    private double avgProcessingLatencyMs;
+    private double streamingThroughputMbps;
+    private int activeStreams;
+    private double kafkaEventsPerSec;
+    private String systemHealth;
 }

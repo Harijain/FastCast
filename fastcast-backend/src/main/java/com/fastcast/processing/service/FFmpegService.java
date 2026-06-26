@@ -132,4 +132,57 @@ public class FFmpegService {
         }
         return 0L;
     }
+
+    public Path generateThumbnail(Path inputFile, UUID videoId)
+            throws IOException, InterruptedException {
+
+        Path outputDir = Paths.get(
+                ffmpegProperties.getOutputDir(),
+                videoId.toString()
+        );
+
+        Files.createDirectories(outputDir);
+
+        Path thumbnail = outputDir.resolve("thumbnail.jpg");
+
+        List<String> command = List.of(
+                ffmpegProperties.getPath(),
+                "-y",
+                "-i", inputFile.toString(),
+                "-ss", "00:00:03",
+                "-frames:v", "1",
+                "-q:v", "2",
+                thumbnail.toString()
+        );
+
+        log.info("Generating thumbnail for video {}", videoId);
+
+        ProcessBuilder pb = new ProcessBuilder(command);
+        pb.redirectErrorStream(true);
+
+        Process process = pb.start();
+
+        try (BufferedReader reader =
+                     new BufferedReader(
+                             new InputStreamReader(process.getInputStream()))) {
+
+            String line;
+
+            while ((line = reader.readLine()) != null) {
+                log.debug("Thumbnail FFmpeg: {}", line);
+            }
+        }
+
+        int exit = process.waitFor();
+
+        if (exit != 0 || !Files.exists(thumbnail)) {
+            throw new RuntimeException(
+                    "Thumbnail generation failed for video " + videoId
+            );
+        }
+
+        log.info("Thumbnail generated: {}", thumbnail);
+
+        return thumbnail;
+    }
 }

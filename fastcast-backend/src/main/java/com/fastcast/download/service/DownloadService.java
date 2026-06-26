@@ -33,8 +33,7 @@ public class DownloadService {
     private final S3Presigner s3Presigner;
     private final AwsProperties awsProperties;
 
-    private static final List<String> VALID_QUALITIES =
-            List.of("original", "720p", "480p", "240p");
+    private static final List<String> VALID_QUALITIES = List.of("original", "720p", "480p", "240p");
 
     /**
      * Generates a pre-signed S3 download URL.
@@ -84,13 +83,16 @@ public class DownloadService {
         return downloadRepository.findByUserIdOrderByDownloadedAtDesc(userId)
                 .stream()
                 .map(d -> {
-                    String title = videoRepository.findById(d.getVideoId())
-                            .map(Video::getTitle)
-                            .orElse("Unknown");
+
+                    Video video = videoRepository.findById(d.getVideoId())
+                            .orElse(null);
+
                     return DownloadHistoryDto.builder()
                             .id(d.getId())
                             .videoId(d.getVideoId())
-                            .videoTitle(title)
+                            .videoTitle(video != null ? video.getTitle() : "Unknown Video")
+                            .thumbnailUrl(video != null ? video.getThumbnailUrl() : null)
+                            .fileSizeBytes(video != null ? video.getFileSizeBytes() : null)
                             .quality(d.getQuality())
                             .downloadedAt(d.getDownloadedAt())
                             .build();
@@ -102,9 +104,9 @@ public class DownloadService {
 
     /**
      * Resolves the correct S3 key based on quality:
-     *  - "original"  → the raw uploaded file key stored in video.s3RawKey
-     *  - quality     → master.m3u8 of that quality rendition
-     *                  (client uses an HLS downloader to fetch all segments)
+     * - "original" → the raw uploaded file key stored in video.s3RawKey
+     * - quality → master.m3u8 of that quality rendition
+     * (client uses an HLS downloader to fetch all segments)
      */
     private String resolveS3Key(Video video, String quality) {
         if ("original".equals(quality)) {
@@ -116,7 +118,8 @@ public class DownloadService {
 
         // For a specific quality rendition, return the index.m3u8 of that stream.
         // The client (e.g. a mobile app with offline download support) should use
-        // an HLS-aware downloader (AVAssetDownloadTask on iOS, ExoPlayer DownloadManager
+        // an HLS-aware downloader (AVAssetDownloadTask on iOS, ExoPlayer
+        // DownloadManager
         // on Android) to resolve and download all segments from the playlist.
         if (video.getS3HlsBasePath() == null) {
             throw new IllegalStateException("HLS not available for video: " + video.getId());

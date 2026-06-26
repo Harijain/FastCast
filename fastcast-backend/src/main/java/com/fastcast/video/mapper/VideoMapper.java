@@ -2,25 +2,18 @@ package com.fastcast.video.mapper;
 
 import com.fastcast.video.dto.VideoDto;
 import com.fastcast.video.entity.Video;
-import lombok.extern.slf4j.Slf4j;
+import com.fastcast.video.enums.VideoStatus;
 import org.springframework.stereotype.Component;
 
-@Slf4j
+import java.util.List;
+
 @Component
 public class VideoMapper {
 
-    /**
-     * Converts Video Entity into Video DTO.
-     *
-     * @param video Video entity
-     * @return VideoDto
-     */
     public VideoDto toDto(Video video) {
-
-        if (video == null) {
-            log.warn("Attempted to map a null Video entity.");
-            return null;
-        }
+        List<String> qualities = VideoStatus.READY.equals(video.getStatus())
+                ? List.of("720p", "480p", "240p")
+                : List.of();
 
         return VideoDto.builder()
                 .id(video.getId())
@@ -32,7 +25,12 @@ public class VideoMapper {
                 .isPublic(video.getIsPublic())
                 .durationSeconds(video.getDurationSeconds())
                 .fileSizeBytes(video.getFileSizeBytes())
+                .sizeBytes(video.getFileSizeBytes())
                 .originalFilename(video.getOriginalFilename())
+                .uploaderId(null)
+                .uploaderName("FastCast")
+                .views(0L)
+                .qualities(qualities)
                 .createdAt(video.getCreatedAt())
                 .updatedAt(video.getUpdatedAt())
                 .build();

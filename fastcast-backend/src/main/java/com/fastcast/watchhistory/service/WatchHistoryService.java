@@ -28,7 +28,6 @@ public class WatchHistoryService {
     public WatchHistoryDto updateProgress(UUID userId, UpdateProgressRequest request) {
         UUID videoId = request.getVideoId();
 
-        // Validate video exists
         Video video = videoRepository.findById(videoId)
                 .orElseThrow(() -> new ResourceNotFoundException("Video", videoId.toString()));
 
@@ -74,10 +73,12 @@ public class WatchHistoryService {
         int progressPercent = 0;
         Long duration = null;
         String title = null;
+        String thumbnailUrl = null;
 
         if (video != null) {
             title = video.getTitle();
             duration = video.getDurationSeconds();
+            thumbnailUrl = video.getThumbnailUrl();
             if (duration != null && duration > 0) {
                 progressPercent = (int) Math.min(100,
                         Math.round((h.getProgressSeconds() * 100.0) / duration));
@@ -89,12 +90,14 @@ public class WatchHistoryService {
                 .userId(h.getUserId())
                 .videoId(h.getVideoId())
                 .videoTitle(title)
+                .thumbnailUrl(thumbnailUrl)
                 .progressSeconds(h.getProgressSeconds())
                 .durationSeconds(duration)
                 .completed(h.getCompleted())
                 .progressPercent(progressPercent)
                 .watchedAt(h.getWatchedAt())
                 .updatedAt(h.getUpdatedAt())
+                .lastWatchedAt(h.getUpdatedAt())
                 .build();
     }
 }

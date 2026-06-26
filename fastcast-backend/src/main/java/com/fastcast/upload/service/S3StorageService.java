@@ -14,7 +14,8 @@ import software.amazon.awssdk.services.s3.model.S3Exception;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
 import software.amazon.awssdk.services.s3.presigner.model.PresignedGetObjectRequest;
-
+import java.nio.file.Path;
+import java.nio.file.Files;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.Set;
@@ -95,6 +96,39 @@ public class S3StorageService {
 
             throw ex;
         }
+    }
+
+    public String uploadThumbnail(Path thumbnailFile, UUID videoId) throws IOException {
+
+        String key = "thumbnails/" + videoId + "/thumbnail.jpg";
+
+        log.info("Uploading thumbnail to S3 key={}", key);
+
+        PutObjectRequest request =
+                PutObjectRequest.builder()
+                        .bucket(awsProperties.getS3().getBucketName())
+                        .key(key)
+                        .contentType("image/jpeg")
+                        .contentLength(Files.size(thumbnailFile))
+                        .cacheControl("public,max-age=31536000")
+                        .metadata(
+                                java.util.Map.of(
+                                        "video-id", videoId.toString()
+                                )
+                        )
+                        .build();
+
+        s3Client.putObject(
+                request,
+                RequestBody.fromFile(thumbnailFile)
+        );
+
+        return String.format(
+                "https://%s.s3.%s.amazonaws.com/%s",
+                awsProperties.getS3().getBucketName(),
+                awsProperties.getRegion(),
+                key
+        );
     }
 
     /**

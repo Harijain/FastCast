@@ -44,7 +44,7 @@ class AuthServiceTest {
                 .id(UUID.randomUUID())
                 .name("Hari Jain")
                 .email("hari@fastcast.com")
-                .passwordHash("hashed_password")
+                .password("hashed_password")
                 .role("USER")
                 .build();
     }

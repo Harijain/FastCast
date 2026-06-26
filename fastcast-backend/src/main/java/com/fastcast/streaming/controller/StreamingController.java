@@ -47,19 +47,6 @@ public class StreamingController {
     private final LatencyMetricsService latencyMetrics;
     private final WatchHistoryService watchHistoryService;
 
-    /*
-     * Bandwidth values match FFmpegService QUALITIES array exactly:
-     *   720p  → video 2800k + audio 128k  = 2928000 bps peak
-     *   480p  → video 1400k + audio 128k  = 1528000 bps peak
-     *   240p  → video  400k + audio  64k  =  464000 bps peak
-     *
-     * Without these BANDWIDTH tags, HLS players (hls.js, Video.js, native Safari)
-     * cannot perform adaptive bitrate switching — they just play the first rendition
-     * forever regardless of network conditions. This is the fix.
-     *
-     * AVERAGE-BANDWIDTH is ~80% of peak — the realistic sustained bitrate.
-     * CODECS string uses H.264 Baseline/Main/High profile level identifiers.
-     */
     private static final String MASTER_PLAYLIST_TEMPLATE =
             "#EXTM3U\n" +
                     "#EXT-X-VERSION:3\n" +
@@ -76,15 +63,12 @@ public class StreamingController {
                     "RESOLUTION=426x240,CODECS=\"avc1.640015,mp4a.40.2\",NAME=\"240p\"\n" +
                     "%s/240p/index.m3u8\n";
 
-    // ── Master playlist ──────────────────────────────────────────────────────
     @GetMapping("/{id}/master.m3u8")
-    @Operation(summary = "Get master HLS playlist (proper BANDWIDTH tags for adaptive switching)")
+    @Operation(summary = "Get master HLS playlist")
     public ResponseEntity<String> getMasterPlaylist(@PathVariable UUID id) {
         Timer.Sample sample = latencyMetrics.startSample();
-        getReadyVideo(id); // validates video exists and is READY
+        getReadyVideo(id);
 
-        // Build playlist entirely on our side so we control the BANDWIDTH tags.
-        // FFmpeg's generated master.m3u8 omits these tags which breaks ABR.
         String qualityBase = "/api/v1/stream/" + id;
         String content = String.format(MASTER_PLAYLIST_TEMPLATE,
                 qualityBase, qualityBase, qualityBase);
@@ -99,7 +83,6 @@ public class StreamingController {
                 .body(content);
     }
 
-    // ── Quality-specific playlist ────────────────────────────────────────────
     @GetMapping("/{id}/{quality}/index.m3u8")
     @Operation(summary = "Get quality-specific HLS playlist")
     public ResponseEntity<String> getQualityPlaylist(
@@ -120,10 +103,10 @@ public class StreamingController {
             content = new String(response.readAllBytes());
         }
 
-        // Rewrite relative segment names → absolute API paths
+        // Rewrite any .ts filename reference to absolute API path
         content = content.replaceAll(
-                "segment(\\d+)\\.ts",
-                "/api/v1/stream/" + id + "/" + quality + "/segment$1.ts"
+                "([\\w.-]+\\.ts)",
+                "/api/v1/stream/" + id + "/" + quality + "/$1"
         );
 
         log.info("Serving {} playlist for videoId: {}", quality, id);
@@ -135,9 +118,8 @@ public class StreamingController {
                 .body(content);
     }
 
-    // ── TS segment — redirect to presigned S3 URL ────────────────────────────
     @GetMapping("/{id}/{quality}/{segment}.ts")
-    @Operation(summary = "Stream a video segment (302 redirect to presigned S3 URL)")
+    @Operation(summary = "Stream a video segment via presigned S3 redirect")
     public ResponseEntity<Void> getSegment(
             @PathVariable UUID id,
             @PathVariable String quality,
@@ -159,16 +141,14 @@ public class StreamingController {
                 .build();
     }
 
-    // ── Streaming info + resume position ─────────────────────────────────────
     @GetMapping("/{id}/info")
-    @Operation(summary = "Get streaming info — includes resume position for authenticated users")
+    @Operation(summary = "Get streaming info including resume position")
     public ResponseEntity<StreamingInfo> getStreamingInfo(
             @PathVariable UUID id,
             @AuthenticationPrincipal User user) {
 
         Video video = getReadyVideo(id);
 
-        // Resume position — 0 if user not logged in or no history yet
         int resumeSeconds = 0;
         if (user != null) {
             try {
@@ -187,12 +167,12 @@ public class StreamingController {
                 .masterPlaylistUrl("/api/v1/stream/" + id + "/master.m3u8")
                 .qualities(new String[]{"720p", "480p", "240p"})
                 .resumeAtSeconds(resumeSeconds)
+                .cacheHit(false)
                 .build());
     }
 
-    // ── Progress update (player calls this every ~10 seconds) ────────────────
     @PostMapping("/{id}/progress")
-    @Operation(summary = "Report current playback position — call every 10s from the player")
+    @Operation(summary = "Report playback position — call every 10s from the player")
     public ResponseEntity<Void> updateProgress(
             @PathVariable UUID id,
             @RequestParam int progressSeconds,

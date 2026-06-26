@@ -13,11 +13,6 @@ public class StreamingInfo {
     private Long durationSeconds;
     private String masterPlaylistUrl;
     private String[] qualities;
-
-    /**
-     * Where the player should seek to on load.
-     * 0 means start from beginning (new viewer or not logged in).
-     * Non-zero means the user previously watched up to this point.
-     */
     private int resumeAtSeconds;
+    private boolean cacheHit;
 }

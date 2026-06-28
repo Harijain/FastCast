@@ -16,6 +16,8 @@ public class CorsConfig {
         config.addAllowedOriginPattern("http://127.0.0.1:*");
         config.addAllowedOriginPattern("https://*.lovable.app");
         config.addAllowedOriginPattern("https://*.vercel.app");
+        config.addAllowedOriginPattern("https://*.trycloudflare.com");
+        config.addAllowedOriginPattern("https://*.workers.dev");
         config.addAllowedMethod("*");
         config.addAllowedHeader("*");
         config.setAllowCredentials(true);

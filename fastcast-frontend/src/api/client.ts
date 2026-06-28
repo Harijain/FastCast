@@ -2,6 +2,66 @@ import axios, { AxiosError } from "axios";
 
 const baseURL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080/api/v1";
 
+// ──────────────────────────────────────────────────────────────
+// Backend health probe
+// Called once on app startup. Cached for the session.
+// Services call shouldUseMocks() instead of USE_MOCKS directly.
+// ──────────────────────────────────────────────────────────────
+let _probeResult: boolean | null = null;      // null = not probed yet
+let _probePromise: Promise<boolean> | null = null;
+
+/** Returns true if the backend is reachable */
+export async function checkBackendReachable(): Promise<boolean> {
+  if (_probeResult !== null) return _probeResult;
+
+  // Force-mock via env — skip probe entirely
+  if ((import.meta.env.VITE_USE_MOCKS ?? "false") !== "false") {
+    _probeResult = false;
+    return false;
+  }
+
+  if (_probePromise) return _probePromise;
+
+  _probePromise = axios
+    .get(`${baseURL.replace("/api/v1", "")}/actuator/health`, { timeout: 3000 })
+    .then(() => true)
+    .catch(() => false)
+    .then((ok) => {
+      _probeResult = ok;
+      _probePromise = null;
+      return ok;
+    });
+
+  return _probePromise;
+}
+
+export function resetBackendStatus() {
+  _probeResult = null;
+  _probePromise = null;
+}
+
+export function isBackendReachable() {
+  return _probeResult;
+}
+
+/**
+ * shouldUseMocks()
+ *
+ * Async – waits for the health probe to resolve.
+ * Services call this instead of USE_MOCKS so the decision is
+ * made at request time, not at module load time.
+ *
+ * Usage in any service:
+ *   if (await shouldUseMocks()) return mockDelay(mockData);
+ */
+export async function shouldUseMocks(): Promise<boolean> {
+  const reachable = await checkBackendReachable();
+  return !reachable;
+}
+
+// ──────────────────────────────────────────────────────────────
+// Axios instance
+// ──────────────────────────────────────────────────────────────
 export const api = axios.create({
   baseURL,
   timeout: 600000,
@@ -74,4 +134,5 @@ api.interceptors.response.use(
   },
 );
 
+// Kept for backward compat (static flag, false by default)
 export const USE_MOCKS = (import.meta.env.VITE_USE_MOCKS ?? "false") !== "false";

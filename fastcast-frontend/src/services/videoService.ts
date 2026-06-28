@@ -1,4 +1,4 @@
-import { api, USE_MOCKS } from "@/api/client";
+import { api, shouldUseMocks } from "@/api/client";
 import { endpoints } from "@/api/endpoints";
 import { mockDelay, mockStreamingInfo, mockVideos } from "@/api/mock";
 import type { StreamingInfo, Video } from "@/api/types";
@@ -38,7 +38,7 @@ function normalizeStreamingInfo(d: any): StreamingInfo {
 
 export const videoService = {
   async list(params?: { page?: number; pageSize?: number; status?: string }): Promise<Video[]> {
-    if (USE_MOCKS) {
+    if (await shouldUseMocks()) {
       let list = mockVideos;
       if (params?.status && params.status !== "ALL")
         list = list.filter((v) => v.status === params.status);
@@ -51,7 +51,7 @@ export const videoService = {
   },
 
   async search(q: string, status?: string): Promise<Video[]> {
-    if (USE_MOCKS) {
+    if (await shouldUseMocks()) {
       const list = mockVideos.filter(
         (v) =>
           (!q || v.title.toLowerCase().includes(q.toLowerCase())) &&
@@ -64,7 +64,7 @@ export const videoService = {
   },
 
   async byId(id: string): Promise<Video> {
-    if (USE_MOCKS) {
+    if (await shouldUseMocks()) {
       const v = mockVideos.find((m) => m.id === id) ?? mockVideos[0];
       return mockDelay(v);
     }
@@ -73,20 +73,19 @@ export const videoService = {
   },
 
   async streamingInfo(id: string): Promise<StreamingInfo> {
-    if (USE_MOCKS) return mockDelay(mockStreamingInfo(id));
+    if (await shouldUseMocks()) return mockDelay(mockStreamingInfo(id));
     const raw = await api.get(endpoints.streaming.info(id));
     const d = raw.data?.data ?? raw.data;
     return normalizeStreamingInfo(d);
   },
 
   masterUrl(id: string): string {
-    if (USE_MOCKS) return mockStreamingInfo(id).masterPlaylistUrl;
     const base = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080/api/v1";
     return `${base}/stream/${id}/master.m3u8`;
   },
 
   async reportProgress(id: string, seconds: number): Promise<void> {
-    if (USE_MOCKS) return;
+    if (await shouldUseMocks()) return;
     await api.post(endpoints.streaming.progress(id), null, {
       params: {
         progressSeconds: Math.floor(seconds),

@@ -80,9 +80,14 @@ export const videoService = {
   },
 
   masterUrl(id: string): string {
-    const base = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080/api/v1";
-    return `${base}/stream/${id}/master.m3u8`;
-  },
+  const base = import.meta.env.VITE_API_BASE_URL;
+
+  if (!base) {
+    throw new Error("VITE_API_BASE_URL is not configured");
+  }
+
+  return `${base}/stream/${id}/master.m3u8`;
+},
 
   async reportProgress(id: string, seconds: number): Promise<void> {
     if (await shouldUseMocks()) return;

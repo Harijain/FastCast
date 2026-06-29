@@ -102,13 +102,15 @@ function WatchPage() {
     }
   };
 
-  const src = info.data?.masterPlaylistUrl
+  const API_BASE = import.meta.env.VITE_API_BASE_URL.replace("/api/v1", "");
+
+const src = info.data?.masterPlaylistUrl
   ? (
       info.data.masterPlaylistUrl.startsWith("http")
         ? info.data.masterPlaylistUrl
-        : `http://localhost:8080${info.data.masterPlaylistUrl}`
+        : `${API_BASE}${info.data.masterPlaylistUrl}`
     )
-  : videoService.masterUrl(id);
+  : `${API_BASE}/api/v1/stream/${id}/master.m3u8`;
 
   const resumeAt = progress.data?.progressSeconds ?? 0;
   const isReady = video.data?.status === "READY";

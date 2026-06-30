@@ -1,4 +1,4 @@
-import { api, USE_MOCKS, tokenStorage } from "@/api/client";
+import { api, shouldUseMocks, tokenStorage } from "@/api/client";
 import { endpoints } from "@/api/endpoints";
 import { mockAuth, mockDelay } from "@/api/mock";
 import type { AuthResponse, AuthUser } from "@/api/types";
@@ -20,7 +20,7 @@ function unwrapAuthResponse(rawData: any): AuthResponse {
 
 export const authService = {
   async login(email: string, password: string): Promise<AuthResponse> {
-    if (USE_MOCKS) {
+    if (await shouldUseMocks()) {
       const res = await mockDelay(mockAuth(email), 600);
       tokenStorage.set(res.token, res.refreshToken);
       return res;
@@ -33,7 +33,7 @@ export const authService = {
   },
 
   async register(name: string, email: string, password: string): Promise<AuthResponse> {
-    if (USE_MOCKS) {
+    if (await shouldUseMocks()) {
       const res = await mockDelay(
         { ...mockAuth(email), user: { ...mockAuth(email).user, name } },
         600,
@@ -49,7 +49,7 @@ export const authService = {
   },
 
   async me(): Promise<AuthUser> {
-    if (USE_MOCKS) return mockDelay(mockAuth("you@fastcast.dev").user, 200);
+    if (await shouldUseMocks()) return mockDelay(mockAuth("you@fastcast.dev").user, 200);
 
     const raw = await api.get(endpoints.auth.me);
     const d = raw.data?.data ?? raw.data;

@@ -1,4 +1,4 @@
-import { api, USE_MOCKS } from "@/api/client";
+import { api, shouldUseMocks } from "@/api/client";
 import { endpoints } from "@/api/endpoints";
 
 export const uploadService = {
@@ -7,7 +7,7 @@ export const uploadService = {
     onProgress: (pct: number) => void,
     meta?: { title?: string; description?: string },
   ): Promise<{ id: string }> {
-    if (USE_MOCKS) {
+    if (await shouldUseMocks()) {
       return new Promise((resolve) => {
         let pct = 0;
         const t = setInterval(() => {

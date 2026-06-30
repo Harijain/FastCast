@@ -1,4 +1,4 @@
-import { api, USE_MOCKS } from "@/api/client";
+import { api, shouldUseMocks } from "@/api/client";
 import { endpoints } from "@/api/endpoints";
 import { mockDelay, mockDownloads } from "@/api/mock";
 import type { DownloadItem } from "@/api/types";
@@ -13,14 +13,14 @@ export interface DownloadUrlResponse {
 
 export const downloadsService = {
   async list(): Promise<DownloadItem[]> {
-    if (USE_MOCKS) return mockDelay(mockDownloads());
+    if (await shouldUseMocks()) return mockDelay(mockDownloads());
     const raw = await api.get(endpoints.downloads.history);
     const data = raw.data?.data ?? raw.data;
     return Array.isArray(data) ? data : [];
   },
 
   async byVideo(id: string): Promise<DownloadItem | null> {
-    if (USE_MOCKS) return mockDelay(mockDownloads().find((d) => d.videoId === id) ?? null);
+    if (await shouldUseMocks()) return mockDelay(mockDownloads().find((d) => d.videoId === id) ?? null);
     try {
       const raw = await api.get(endpoints.downloads.byVideo(id));
       return raw.data?.data ?? raw.data ?? null;
@@ -30,7 +30,7 @@ export const downloadsService = {
   },
 
   async requestDownload(videoId: string, quality: string): Promise<DownloadUrlResponse> {
-    if (USE_MOCKS) {
+    if (await shouldUseMocks()) {
       return mockDelay({
         videoId,
         title: "Mock Video",

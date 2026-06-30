@@ -1,11 +1,11 @@
-import { api, USE_MOCKS } from "@/api/client";
+import { api, shouldUseMocks } from "@/api/client";
 import { endpoints } from "@/api/endpoints";
 import { mockDelay, mockMetrics } from "@/api/mock";
 import type { MetricsSummary } from "@/api/types";
 
 export const metricsService = {
   async summary(): Promise<MetricsSummary> {
-    if (USE_MOCKS) return mockDelay(mockMetrics(), 200);
+    if (await shouldUseMocks()) return mockDelay(mockMetrics(), 200);
     const raw = await api.get(endpoints.metrics.summary);
     const d = raw.data?.data ?? raw.data;
     return {

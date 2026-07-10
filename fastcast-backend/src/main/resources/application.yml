@@ -30,6 +30,16 @@ spring:
     locations: classpath:db/migration
     baseline-on-migrate: true
 
+
+#  AI
+  ai:
+    gemini:
+      api-key: ${GEMINI_API_KEY}
+      base-url: https://generativelanguage.googleapis.com/v1beta
+      model: gemini-2.0-flash
+      timeout-ms: 8000
+      max-retries: 2
+
   # REDIS
   data:
     redis:

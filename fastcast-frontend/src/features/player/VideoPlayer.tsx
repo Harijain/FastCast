@@ -73,11 +73,20 @@ export function VideoPlayer({ src, poster, startAt = 0, onProgress }: Props) {
     return () => document.removeEventListener("fullscreenchange", onFs);
   }, []);
 
-  const togglePlay = () => {
-    const v = videoRef.current;
-    if (!v) return;
-    if (v.paused) v.play(); else v.pause();
-  };
+  const togglePlay = async () => {
+  const v = videoRef.current;
+  if (!v) return;
+
+  try {
+    if (v.paused) {
+      await v.play();
+    } else {
+      v.pause();
+    }
+  } catch (error) {
+    console.error("Video playback failed:", error);
+  }
+};
 
   const seek = (e: React.MouseEvent<HTMLDivElement>) => {
     const v = videoRef.current;
